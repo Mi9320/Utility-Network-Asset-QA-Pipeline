@@ -61,14 +61,12 @@ water infrastructure features.
 ---
 
 ## Workflow
-Toronto Open Data          FME Workspace              ArcPy Script
-(Water Mains +         →   (5 automated QA/QC     →   (PASS/FAIL stamping
-Water Valves)              checks per dataset)         + summary report)
-↓
-ArcGIS Online
-(Interactive Dashboard
-with KPIs + error map)
+``` text
+Toronto Open Data      FME Workspace           ArcPy Script            ArcGIS Dashboard 
+(Water Mains +     →   (5 automated QA/QC  →   (PASS/FAIL stamping  →  (Interactive Dashboard
+Water Valves)          checks per dataset)      + summary report)      with error map)
 
+```
 ---
 
 ## Tools Used
@@ -143,7 +141,7 @@ Open ArcGIS Pro Python window and run:
 exec(open(r"path\to\Scripts\QA_Report.py").read())
 ```
 ### Sample Output
-============================================================
+```
 UTILITY NETWORK ASSET QA/QC PIPELINE
 QA Summary Report — Ward 13 Toronto Centre
 Generated: 2026-04-12 18:45
@@ -158,6 +156,7 @@ Water_Valves_W13   PASS: 1562   FAIL: 677
 TOTAL FEATURES:  3696
 TOTAL ERRORS:    701
 ERROR RATE:      19.0%
+```
 ---
 
 ## Step 4 — ArcGIS Online Dashboard
@@ -178,6 +177,7 @@ Dashboard components:
 ---
 
 ## Project Structure
+```text
 Utility_Network_Asset_QA_and_QC_Pipeline/
 ├── DATA/                          ← Raw Toronto open data shapefiles
 ├── FME/
@@ -194,7 +194,7 @@ Utility_Network_Asset_QA_and_QC_Pipeline/
 ├── Mains_QA_Passed           ← 1,433 clean mains
 ├── Valves_QA_Passed          ← 1,562 clean valves
 └── Service_Area              ← Ward 13 boundary
-
+```
 ---
 
 ## Key Skills Demonstrated
