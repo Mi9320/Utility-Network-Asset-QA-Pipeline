@@ -1,0 +1,157 @@
+import arcpy
+import os
+from collections import Counter
+from datetime import datetime
+
+# ============================================================
+# UTILITY NETWORK ASSET QA/QC PIPELINE
+# ArcPy QA Report Script
+# Author: Ibrahim Mirza
+# Ward 13 Toronto Centre
+# ============================================================
+
+# --- PATHS ---
+gdb = r"C:\Users\mirza\Desktop\RESUMES AND COVER LETTERS\PROJECTS\Utility_Network_Asset_QA_and_QC_Pipeline\Utility_Network_Asset_QA_and_QC_Pipeline\Utility_Network_Asset_QA_and_QC_Pipeline.gdb"
+
+mains_errors   = os.path.join(gdb, "Mains_QA_Errors")
+valves_errors  = os.path.join(gdb, "Valves_QA_Errors")
+mains_passed   = os.path.join(gdb, "Mains_QA_Passed")
+valves_passed  = os.path.join(gdb, "Valves_QA_Passed")
+water_mains    = os.path.join(gdb, "Water_Mains_W13")
+water_valves   = os.path.join(gdb, "Water_Valves_W13")
+output_report  = r"C:\Users\mirza\Desktop\RESUMES AND COVER LETTERS\PROJECTS\Utility_Network_Asset_QA_and_QC_Pipeline\Outputs\QA_Summary_Report.txt"
+
+# ============================================================
+# STEP 1 — COUNT ERRORS BY TYPE AND SOURCE
+# ============================================================
+print("Step 1: Reading error layers...")
+
+error_by_type   = Counter()
+error_by_source = Counter()
+
+for error_layer in [mains_errors, valves_errors]:
+    with arcpy.da.SearchCursor(error_layer, ["ERROR_TYPE", "SOURCE_FC"]) as cursor:
+        for row in cursor:
+            error_type  = row[0] if row[0] else "UNKNOWN"
+            source_fc   = row[1] if row[1] else "UNKNOWN"
+            error_by_type[error_type]   += 1
+            error_by_source[source_fc]  += 1
+
+total_errors = sum(error_by_type.values())
+print(f"  Total errors found: {total_errors}")
+
+# ============================================================
+# STEP 2 — COUNT CLEAN FEATURES
+# ============================================================
+print("Step 2: Counting clean features...")
+
+mains_pass_count  = int(arcpy.management.GetCount(mains_passed).getOutput(0))
+valves_pass_count = int(arcpy.management.GetCount(valves_passed).getOutput(0))
+mains_fail_count  = int(arcpy.management.GetCount(mains_errors).getOutput(0))
+valves_fail_count = int(arcpy.management.GetCount(valves_errors).getOutput(0))
+
+print(f"  Water Mains  — PASS: {mains_pass_count}  FAIL: {mains_fail_count}")
+print(f"  Water Valves — PASS: {valves_pass_count}  FAIL: {valves_fail_count}")
+
+# ============================================================
+# STEP 3 — ADD QA_STATUS FIELD TO ORIGINAL LAYERS
+# ============================================================
+print("Step 3: Adding QA_Status field to original layers...")
+
+def add_qa_status_field(feature_class):
+    existing = [f.name for f in arcpy.ListFields(feature_class)]
+    if "QA_Status" not in existing:
+        arcpy.management.AddField(feature_class, "QA_Status", "TEXT", field_length=10)
+        print(f"  Added QA_Status to {os.path.basename(feature_class)}")
+    else:
+        print(f"  QA_Status already exists in {os.path.basename(feature_class)}")
+
+add_qa_status_field(water_mains)
+add_qa_status_field(water_valves)
+
+# ============================================================
+# STEP 4 — MARK PASS/FAIL ON ORIGINAL WATER MAINS
+# ============================================================
+print("Step 4: Marking PASS/FAIL on Water_Mains_W13...")
+
+error_mains_ids = set()
+with arcpy.da.SearchCursor(mains_errors, ["QA_ASSET_ID"]) as cursor:
+    for row in cursor:
+        if row[0]:
+            error_mains_ids.add(row[0])
+
+with arcpy.da.UpdateCursor(water_mains, ["Waterma2", "QA_Status"]) as cursor:
+    for row in cursor:
+        if row[0] in error_mains_ids:
+            row[1] = "FAIL"
+        else:
+            row[1] = "PASS"
+        cursor.updateRow(row)
+
+print(f"  Done — {len(error_mains_ids)} mains marked FAIL")
+
+# ============================================================
+# STEP 5 — MARK PASS/FAIL ON ORIGINAL WATER VALVES
+# ============================================================
+print("Step 5: Marking PASS/FAIL on Water_Valves_W13...")
+
+error_valve_ids = set()
+with arcpy.da.SearchCursor(valves_errors, ["QA_ASSET_ID"]) as cursor:
+    for row in cursor:
+        if row[0]:
+            error_valve_ids.add(row[0])
+
+with arcpy.da.UpdateCursor(water_valves, ["Asset_I2", "QA_Status"]) as cursor:
+    for row in cursor:
+        if row[0] in error_valve_ids:
+            row[1] = "FAIL"
+        else:
+            row[1] = "PASS"
+        cursor.updateRow(row)
+
+print(f"  Done — {len(error_valve_ids)} valves marked FAIL")
+
+# ============================================================
+# STEP 6 — WRITE SUMMARY REPORT
+# ============================================================
+print("Step 6: Writing summary report...")
+
+report_lines = []
+report_lines.append("=" * 60)
+report_lines.append("UTILITY NETWORK ASSET QA/QC PIPELINE")
+report_lines.append("QA Summary Report — Ward 13 Toronto Centre")
+report_lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+report_lines.append("=" * 60)
+
+report_lines.append("\nERROR COUNT BY TYPE:")
+report_lines.append("-" * 40)
+for error_type, count in sorted(error_by_type.items()):
+    report_lines.append(f"  {error_type:<35} {count}")
+
+report_lines.append("\nERROR COUNT BY FEATURE CLASS:")
+report_lines.append("-" * 40)
+for source, count in sorted(error_by_source.items()):
+    report_lines.append(f"  {source:<35} {count}")
+
+report_lines.append("\nQA STATUS SUMMARY:")
+report_lines.append("-" * 40)
+report_lines.append(f"  Water_Mains_W13    PASS: {mains_pass_count:<6} FAIL: {mains_fail_count}")
+report_lines.append(f"  Water_Valves_W13   PASS: {valves_pass_count:<6} FAIL: {valves_fail_count}")
+report_lines.append(f"\n  TOTAL FEATURES:  {mains_pass_count + valves_pass_count + mains_fail_count + valves_fail_count}")
+report_lines.append(f"  TOTAL ERRORS:    {total_errors}")
+report_lines.append(f"  TOTAL CLEAN:     {mains_pass_count + valves_pass_count}")
+report_lines.append(f"  ERROR RATE:      {round((total_errors / (mains_pass_count + valves_pass_count + mains_fail_count + valves_fail_count)) * 100, 1)}%")
+report_lines.append("\n" + "=" * 60)
+report_lines.append("END OF REPORT")
+report_lines.append("=" * 60)
+
+os.makedirs(os.path.dirname(output_report), exist_ok=True)
+with open(output_report, "w") as f:
+    f.write("\n".join(report_lines))
+
+print(f"\n✅ QA Report complete!")
+print(f"Report saved to: {output_report}")
+print(f"\nSUMMARY:")
+print(f"  Total features: {mains_pass_count + valves_pass_count + mains_fail_count + valves_fail_count}")
+print(f"  Total errors:   {total_errors}")
+print(f"  Error rate:     {round((total_errors / (mains_pass_count + valves_pass_count + mains_fail_count + valves_fail_count)) * 100, 1)}%")
