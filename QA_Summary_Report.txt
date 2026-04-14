@@ -1,0 +1,31 @@
+============================================================
+UTILITY NETWORK ASSET QA/QC PIPELINE
+QA Summary Report — Ward 13 Toronto Centre
+Generated: 2026-04-12 18:45
+============================================================
+
+ERROR COUNT BY TYPE:
+----------------------------------------
+  INVALID_MATERI                      3
+  INVALID_NETWORK_TY                  625
+  INVALID_VALVE_TYPE                  52
+  NULL_ATTRIBUTE                      21
+
+ERROR COUNT BY FEATURE CLASS:
+----------------------------------------
+  Water_Mains_W13                     24
+  Water_Valves_W13                    677
+
+QA STATUS SUMMARY:
+----------------------------------------
+  Water_Mains_W13    PASS: 1433   FAIL: 24
+  Water_Valves_W13   PASS: 1562   FAIL: 677
+
+  TOTAL FEATURES:  3696
+  TOTAL ERRORS:    701
+  TOTAL CLEAN:     2995
+  ERROR RATE:      19.0%
+
+============================================================
+END OF REPORT
+============================================================
