@@ -12,16 +12,9 @@
 ---
 
 ## Project Overview
+A fully automated GIS-based quality assurance pipeline for Toronto's Ward 13 water distribution network. This project simulates the daily data integrity work performed by Geospatial Technicians at utility companies — validating spatial and attribute data across thousands of infrastructure assets using industry-standard tools: FME, ArcGIS Pro, ArcPy, and ArcGIS Online.
 
-A fully automated GIS-based quality assurance pipeline for Toronto's Ward 13 
-water distribution network. This project simulates the daily data integrity 
-work performed by Geospatial Technicians at utility companies — validating 
-spatial and attribute data across thousands of infrastructure assets using 
-industry-standard tools: FME, ArcGIS Pro, ArcPy, and ArcGIS Online.
-
-Real open data from the City of Toronto was processed through a 5-check 
-automated QA/QC workflow, identifying 701 data quality issues across 3,696 
-water infrastructure features.
+Real open data from the City of Toronto was processed through a 5-check automated QA/QC workflow, identifying 701 data quality issues across 3,696 water infrastructure features.
 
 ---
 
@@ -30,21 +23,22 @@ water infrastructure features.
 | Metric | Value |
 |---|---|
 | Total Assets Audited | 3,696 |
-| Total Errors Found | 701 |
-| Overall Network Health | 81% |
-| Overall Error Rate | 19% |
-| Valve Error Rate | 30.2% |
-| Mains Error Rate | 1.6% |
+| Total Errors Found | 77 |
+| Overall Network Health | 97.9 |
+| Overall Error Rate | 2.1% |
+| Valve Errors | 53 |
+| Mains Errors | 24 |
 
 ### Error Breakdown
 
 | Error Type | Count | Feature Class |
 |---|---|---|
-| INVALID_NETWORK_TYPE | 625 | Water_Valves_W13 |
-| INVALID_VALVE_TYPE | 52 | Water_Valves_W13 |
-| NULL_ATTRIBUTE | 21 | Water_Mains_W13 |
-| INVALID_MATERIAL | 3 | Water_Mains_W13 |
-| **Total** | **701** | |
+| INVALID_DIAMETER(ZERO)_TYPE | 39 | Water_Valves_W13 |
+| INVALID_VALVE_TYPE(UNOKNOWN / ZERO) | 8 | Water_Valves_W13 |
+| BOTH_ERRORS(DIAMETER / VALVE_TYPE) | 6 | Water_Valves_W13 |
+| INVALID_MATERIAL | 7 | Water_Mains_W13 |
+| INVALID_YEAR | 17 | Water_Mains_W13 |
+| **Total** | **77** | |
 
 ---
 
@@ -56,7 +50,7 @@ water infrastructure features.
   - City Wards Boundaries
 - **Study Area:** Ward 13 — Toronto Centre
 - **Coordinate System:** NAD83(CSRS) MTM Zone 10 (EPSG: 2952)
-- **Features:** 1,457 water mains + 2,239 valves = 3,696 total
+- **Features:** 1,457 water mains + 2,186 valves = 3,696 total
 
 ---
 
@@ -97,29 +91,29 @@ Water Valves)          checks per dataset)      + summary report)      with erro
 
 Five automated checks run on each dataset:
 
-### Water Mains Checks
-| Check | Transformer | Field | Result |
-|---|---|---|---|
-| Null/empty attributes | Tester | Waterma2, Waterma4, Waterma5, Waterma7 | 21 errors |
-| Duplicate Asset ID | DuplicateFilter | Waterma2 | 0 errors |
-| Invalid diameter | Tester | Waterma4 = 0 | 0 errors |
-| Invalid material | Tester | Waterma5 = UNK | 3 errors |
-| Invalid install year | Tester | Waterma7 < 1800 or > 2026 | 0 errors |
+### 💧 Water Mains Validation
+| Validation Rule | FME Transformer | Target Field | Logic / Condition | Flagged Assets |
+| :--- | :--- | :--- | :--- | :--- |
+| **Invalid Material** | `AttributeValidator` | `Material` | Value IN approved domain (e.g., CI, DI, PVC). Rejects 'UNK'. | **7** |
+| **Invalid Install Year** | `AttributeValidator` | `Install_Year` | Value > 1800 AND <= Current Year | **17** |
+| **Null Geometry** | `GeometryValidator` | `Shape` | Asset must contain valid polyline geometry | **0** |
+| **Duplicate IDs** | `DuplicateFilter` | `Asset_ID` | `Asset_ID` must be unique across the network | **0** |
+| | | | **Total Failing Mains:** | **24** |
 
-### Water Valves Checks
-| Check | Transformer | Field | Result |
-|---|---|---|---|
-| Null/empty attributes | Tester | Asset_I2, Water_V3, Water_V5 | 0 errors |
-| Duplicate Asset ID | DuplicateFilter | Asset_I2 | 0 errors |
-| Invalid diameter | Tester | Water_V3 = 0 | 0 errors |
-| Invalid valve type | Tester | Water_V5 not in approved list | 52 errors |
-| Invalid network type | Tester | Water_V4 != DIST | 625 errors |
+### 🚰 Water Valves Validation
+| Validation Rule | FME Transformer | Target Field | Logic / Condition | Flagged Assets |
+| :--- | :--- | :--- | :--- | :--- |
+| **Invalid Diameter** | `AttributeValidator` | `Diameter` | Value > 0 (Catches human-entry `0` placeholders) | **39** |
+| **Invalid Valve Type** | `AttributeValidator` | `Valve_Type` | Value NOT IN ('Unknown', 'None', 'Blank') | **8** |
+| **Compound Errors** | `AttributeValidator` | `Diameter` & `Valve_Type` | Asset failed both physical and domain checks | **6** |
+| **Null Attributes** | `AttributeValidator` | All Critical Fields | Value is not missing/null | **0** |
+| | | | **Total Failing Valves:** | **53** |
 
 ### Output Layers
 - `Mains_QA_Errors` — 24 flagged water mains
-- `Valves_QA_Errors` — 677 flagged valves
+- `Valves_QA_Errors` — 53 flagged valves
 - `Mains_QA_Passed` — 1,433 clean water mains
-- `Valves_QA_Passed` — 1,562 clean valves
+- `Valves_QA_Passed` — 2,186 clean valves
 
 ---
 
@@ -142,20 +136,22 @@ exec(open(r"path\to\Scripts\QA_Report.py").read())
 ```
 ### Sample Output
 ```
-UTILITY NETWORK ASSET QA/QC PIPELINE
-QA Summary Report — Ward 13 Toronto Centre
-Generated: 2026-04-12 18:45
 ERROR COUNT BY TYPE:
-INVALID_MATERIAL                    3
-INVALID_NETWORK_TYPE                625
-INVALID_VALVE_TYPE                  52
-NULL_ATTRIBUTE                      21
+Invalid Diameter (Zero)             39
+Invalid Install Year                17
+Invalid Valve Type                  8
+Invalid Material                    7
+Compound Errors (Diameter & Type)   6
+
 QA STATUS SUMMARY:
 Water_Mains_W13    PASS: 1433   FAIL: 24
-Water_Valves_W13   PASS: 1562   FAIL: 677
+Water_Valves_W13   PASS: 2186   FAIL: 53
+
+--------------------------------------------------
 TOTAL FEATURES:  3696
-TOTAL ERRORS:    701
-ERROR RATE:      19.0%
+TOTAL ERRORS:    77
+ERROR RATE:      2.1%
+==================================================
 ```
 ---
 
@@ -165,11 +161,11 @@ ERROR RATE:      19.0%
 
 Dashboard components:
 - Interactive map — Ward 13 water network with error locations highlighted
-- Overall Network Health KPI — 81%
-- Error Rate KPI — 19%
-- Valve Errors KPI — 677
+- Overall Network Health KPI — 97.9%
+- Error Rate KPI — 2.1%
+- Valve Errors KPI — 53
 - Mains Errors KPI — 24
-- Clean Valves KPI — 1,562
+- Clean Valves KPI — 2,186
 - Clean Mains KPI — 1,433
 - Bar charts — errors by type for mains and valves
 - Legend panel
@@ -190,9 +186,9 @@ Utility_Network_Asset_QA_and_QC_Pipeline/
 ├── Water_Mains_W13           ← Original + QA_Status field
 ├── Water_Valves_W13          ← Original + QA_Status field
 ├── Mains_QA_Errors           ← 24 flagged mains
-├── Valves_QA_Errors          ← 677 flagged valves
+├── Valves_QA_Errors          ← 53 flagged valves
 ├── Mains_QA_Passed           ← 1,433 clean mains
-├── Valves_QA_Passed          ← 1,562 clean valves
+├── Valves_QA_Passed          ← 2,186 clean valves
 └── Service_Area              ← Ward 13 boundary
 ```
 ---
