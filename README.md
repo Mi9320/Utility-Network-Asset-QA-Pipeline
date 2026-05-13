@@ -14,7 +14,7 @@
 ## Project Overview
 A fully automated GIS-based quality assurance pipeline for Toronto's Ward 13 water distribution network. This project simulates the daily data integrity work performed by Geospatial Technicians at utility companies — validating spatial and attribute data across thousands of infrastructure assets using industry-standard tools: FME, ArcGIS Pro, ArcPy, and ArcGIS Online.
 
-Real open data from the City of Toronto was processed through a 5-check automated QA/QC workflow, identifying 701 data quality issues across 3,696 water infrastructure features.
+Real open data from the City of Toronto was processed through a 5-check automated QA/QC workflow, identifying 77 data quality issues across 3,696 water infrastructure features.
 
 ---
 
